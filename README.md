@@ -47,6 +47,6 @@ Các đối tượng định nghĩa trong module:
 - HandleNumber là callback nhận giá trị nhập vào từ nút và trạng thái chính của phần mềm để xử lý tương ứng.
 #### 4. Thành viên thực hiện dự án:
 Phạm Văn Dương  
-Minh  
+Ngô Thị Hiền Minh  
 Thái Nguyễn Gia Đức  
 Lê Trọng Tín  
