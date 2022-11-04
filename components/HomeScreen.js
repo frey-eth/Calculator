@@ -3,21 +3,101 @@ import {IconButton,MD3Colors , SafeAreaView,ScrollView,TouchableOpacity, StyleSh
 import Button from "./Button";
 import Row from "./Row";
 import calculator, {initialState} from "../util/calculator"
+import { DataProvider, LayoutProvider, RecyclerListView } from "recyclerlistview";
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import SearchScreen from "./SearchScreen";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default class HomeScreen extends Component {
     state = initialState;
-    constructor(props) {
+    constructor(props) 
+    {
         super(props);
         this.st = {
           list:[],
         };
-      
-    }    
-    HandleTap = (type, value) =>{
+
+        this.current_item = 0;
+
+        this.Fetch_data();
+
+        this.state = 
+        {
+            dataProvider: new DataProvider((r1, r2) => (r1 !== r2)).cloneWithRows(this.st.list),
+            currentValue: "",
+            result:"",
+            btn_height : 60,
+            input_font : 45,
+            out_font : 35
+        }
+        
+        this.layoutProvider = new LayoutProvider(
+            (position) => 0,
+            (type, size_holder) =>
+            {
+                size_holder.width = 200;
+                size_holder.height = 60;
+            }
+        )
+
+        Dimensions.addEventListener('change', () =>
+        {
+            let dim = Dimensions.get('screen');
+
+            if(dim.width > dim.height)
+            {
+                this.setState({btn_height : 35, input_font : 15, out_font : 10});
+                console.log('went here!!')
+            }
+            else
+                this.setState({btn_height : 60, input_font : 45, out_font : 25})
+        })
+    }
+
+    Store_data = async () =>
+    {
+        try
+        {
+            AsyncStorage.setItem('history', JSON.stringify(this.st.list));
+        }
+        catch(error)
+        {
+            console.log(error);
+        }
+    }
+    
+    Fetch_data = async () =>
+    {
+        AsyncStorage.getItem('history')
+            .then(list_str => 
+                {
+                    if(list_str == null)
+                        return;
+
+                    this.st.list = JSON.parse(list_str);
+                    
+                    this.setState({dataProvider : this.state.dataProvider.cloneWithRows(
+                        JSON.parse(list_str)
+                    )});
+                })
+            .catch(error => console.log(error))
+    }
+
+
+    On_bind_view_holder(type, data)
+    {
+        return (
+            <View style={{borderBottomWidth : 2, borderColor : 'lightgray'}}>
+                <Text style={{color : 'white'}}>
+                    {"Expr: " + data.expr}
+                </Text>
+                <Text style={{color : 'white'}}>{"Result: " + data.tol}</Text>
+            </View>)
+    }
+
+    HandleTap = (type, value) =>
+    {
         if(this.state.flag===true)
             this.st.list=[]
         if(type==="equal")
@@ -25,6 +105,9 @@ export default class HomeScreen extends Component {
             var temp={expr:this.state.currentValue,tol:this.state.result}
             this.st.list=[...this.st.list,temp]
             this.setState((state)=>calculator(type,value,state))
+
+            this.setState({dataProvider : this.state.dataProvider.cloneWithRows(this.st.list)})
+            this.Store_data()
         }
         else
             this.setState((state)=>calculator(type,value,state))
@@ -34,150 +117,157 @@ export default class HomeScreen extends Component {
         const {navigation} = this.props
 
         return (
+            <View style={{flex : 1, flexDirection : 'row'}}>
             <View style={styles.container}>
-                <StatusBar 
-                    animated={true}
-                    backgroundColor="#202020"
-                >
-                </StatusBar>  
-                
-                <View style={{flex:1,justifyContent:"center"}}>
-    
-                    <Button text='Search' onPress={()=>{
-                    navigation.navigate('SearchScreen',{Hislist:this.st.list})
-                }}></Button>
-                </View>  
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+
                 <KeyboardAvoidingView style={styles.input}>     
-                    <TextInput style = {styles.value}
-                        keyboardType='numeric'
-                        onChangeText={(text)=>this.HandleTap("text",text)}>
-                            {this.state.currentValue}
+                    <TextInput 
+                        style = {{
+                            color: "#fff",
+                            fontSize: this.state.input_font,
+                            textAlign: "right",
+                            marginHorizontal:20,}}
+                            keyboardType='numeric'
+                            onChangeText={(text)=>this.HandleTap("text",text)}>
+
+                        {this.state.currentValue}
                     </TextInput>
                 </KeyboardAvoidingView>
-                </TouchableWithoutFeedback>
 
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View style={styles.res} >                 
-                    <View style={{flex:4,}}>
-                        <Text style ={styles.resvalue}>
-                            {this.state.result}
-                        </Text>
+                    <View style={styles.res} >                 
+                        <View>
+                            <Text style =
+                            {{
+                                color: "#fff",
+                                fontSize: this.state.out_font,
+                                textAlign: "right",
+                                marginHorizontal:20,
+                            }}>
+                                {this.state.result}
+                            </Text>
+                        </View>
                     </View>
-                </View>
                 </TouchableWithoutFeedback>
 
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View style={styles.button}>
-                    <Row>
-                        <Button
-                            text="AC"
-                            theme="secondary"
-                            onPress={()=>this.HandleTap("clear")}/>
-                        
-                        <Button
-                            text="C"
-                            theme="secondary"
-                            onPress={()=>this.HandleTap("C")}/>
+                <View style={{flexDirection : "column"}}>
+                    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={styles.button}>
+                        <Row>
+                            <Button
+                                btn_height={this.state.btn_height}
+                                text="AC"
+                                theme="secondary"
+                                onPress={()=>this.HandleTap("clear")}/>
 
-                        <Button
-                            text="!"
-                            theme='secondary'
-                            onPress={()=>this.HandleTap("fac","!")}
+                            <Button
+                                btn_height={this.state.btn_height}
+                                text="C"
+                                theme="secondary"
+                                onPress={()=>this.HandleTap("C")}/>
+
+                            <Button
+                                btn_height={this.state.btn_height}
+                                text="!"
+                                theme='secondary'
+                                onPress={()=>this.HandleTap("fac","!")}
+                                />
+
+                            <Button
+                                btn_height={this.state.btn_height}
+                                text="÷"
+                                theme="accent"
+                                onPress={()=>this.HandleTap("operator","/")}/>
+                        </Row>
+
+                        <Row>
+                            <Button text= '7' btn_height={this.state.btn_height} onPress={()=>this.HandleTap("number",7)}/>
+                            <Button text= '8' btn_height={this.state.btn_height} onPress={()=>this.HandleTap("number",8)}/>
+                            <Button text= '9' btn_height={this.state.btn_height} onPress={()=>this.HandleTap("number",9)}/>
+                            <Button text= 'x' btn_height={this.state.btn_height} theme={"accent"} onPress={()=>this.HandleTap("operator","*")}/>
+                        </Row>
+
+                        <Row>
+                            <Button text= '4' btn_height={this.state.btn_height} onPress={()=>this.HandleTap("number",4)}/>
+                            <Button text= '5' btn_height={this.state.btn_height} onPress={()=>this.HandleTap("number",5)}/>
+                            <Button text= '6' btn_height={this.state.btn_height} onPress={()=>this.HandleTap("number",6)}/>
+                            <Button text= '-' btn_height={this.state.btn_height} theme={"accent"} onPress={()=>this.HandleTap("operator","-")}/>
+                        </Row>
+
+                        <Row>
+                            <Button text= '1' btn_height={this.state.btn_height} onPress={()=>this.HandleTap("number",1)}/>
+                            <Button text= '2' btn_height={this.state.btn_height} onPress={()=>this.HandleTap("number",2)}/>
+                            <Button text= '3' btn_height={this.state.btn_height} onPress={()=>this.HandleTap("number",3)}/>
+                            <Button text= '+' btn_height={this.state.btn_height} theme={"accent"} onPress={()=>this.HandleTap("operator","+")}/>
+                        </Row>
+
+                        <Row>
+                            <Button text= "0" btn_height={this.state.btn_height} onPress={() => this.HandleTap("number", 0)} />
+                            <Button text= "." btn_height={this.state.btn_height} onPress={() => this.HandleTap("dot", ".")} />
+                            <Button text= "^" btn_height={this.state.btn_height} theme="accent" onPress={()=>this.HandleTap("exp","^")}/>
+                            <Button text= "=" btn_height={this.state.btn_height} theme="accent" onPress={() => this.HandleTap("equal", "=")}
                             />
+                        </Row>
                         
-                        <Button
-                            text="÷"
-                            theme="accent"
-                            onPress={()=>this.HandleTap("operator","/")}/>
-                    </Row>
-
-                    <Row>
-                        <Button text= '7' onPress={()=>this.HandleTap("number",7)}/>
-                        <Button text= '8' onPress={()=>this.HandleTap("number",8)}/>
-                        <Button text= '9' onPress={()=>this.HandleTap("number",9)}/>
-                        <Button text= 'x' theme={"accent"} onPress={()=>this.HandleTap("operator","*")}/>
-                    </Row>
-
-                    <Row>
-                        <Button text= '4' onPress={()=>this.HandleTap("number",4)}/>
-                        <Button text= '5' onPress={()=>this.HandleTap("number",5)}/>
-                        <Button text= '6' onPress={()=>this.HandleTap("number",6)}/>
-                        <Button text= '-' theme={"accent"} onPress={()=>this.HandleTap("operator","-")}/>
-                    </Row>
-
-                    <Row>
-                        <Button text= '1' onPress={()=>this.HandleTap("number",1)}/>
-                        <Button text= '2' onPress={()=>this.HandleTap("number",2)}/>
-                        <Button text= '3' onPress={()=>this.HandleTap("number",3)}/>
-                        <Button text= '+' theme={"accent"} onPress={()=>this.HandleTap("operator","+")}/>
-                    </Row>
-
-                    <Row>
-                        <Button text= "0" onPress={() => this.HandleTap("number", 0)} />
-                        <Button text= "." onPress={() => this.HandleTap("dot", ".")} />
-                        <Button text= "^" theme="accent" onPress={()=>this.HandleTap("exp","^")}/>
-                        <Button text= "=" theme="accent" onPress={() => this.HandleTap("equal", "=")}
-                        />
-                    </Row>
-                    
-                </View>               
-                </TouchableWithoutFeedback>    
+                    </View>               
+                </TouchableWithoutFeedback>
+                </View>
             </View>
+                <View style={{flex : 1, flexDirection : 'column', backgroundColor : '#202020'}}>
+                    <RecyclerListView
+                        style={{flex : 1, backgroundColor: "#202020"}}
+                        dataProvider={this.state.dataProvider}
+                        layoutProvider={this.layoutProvider}
+                        rowRenderer={this.On_bind_view_holder}/>
 
+                    <TextInput
+                        style={{height : 70, backgroundColor : 'lightgray', padding : 10, borderRadius : 16, marginHorizontal : 10}}
+                        placeholder="Search"/>
+                </View>
+            </View>
         )
     }
 }
 
 const screen = Dimensions.get("window");
 const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: "#202020",
-      //justifyContent:"center",
+    container: 
+    {
+        flex : 1.5,
+        flexDirection : 'column',
+        justifyContent : 'space-around',
+        backgroundColor: "#202020",
     },
-    input:{
-        flex:1.75,
+
+    input:
+    {
+        padding : 10,
         backgroundColor:'#a9a9a9',
         justifyContent:'center',
-        //backgroundColor:"blue"
     },
-    res:{
-        flex:1,
-        //backgroundColor:'blue',
+
+    res:
+    {
+        padding : 30,
+        marginVertical : 10,
+        backgroundColor:'gray',
         flexDirection:'row',
         
     },
-    button:{
-        flex:5,
-        //backgroundColor:'red',
-    },
-    value: {
-      color: "#fff",
-      fontSize: 42,
-      textAlign: "right",
-      marginHorizontal:20,
-    },
-    resvalue: {
-        color: "#fff",
-        fontSize: 22,
-        textAlign: "right",
-        marginHorizontal:20,
-      },
-    textInput: {
+    textInput: 
+    {
         backgroundColor: '#BFBFBF',
         borderRadius: 10,
         height: 50,
-        fontSize: 20,
+        fontSize: 15,
         fontWeight: 'bold',
-        marginHorizontal:screen.width/20,
         paddingHorizontal: 10,
-      },
-    hisbt:{
-        flex:1,
-        borderRadius:30,
-        marginLeft:screen.width/40,
-        marginVertical:screen.width/40,
-        //backgroundColor:"red",
     },
+    button_style:
+    {
+        backgroundColor : 'lightgray',
+        paddingHorizontal : 40,
+        paddingVertical : 10,
+        borderRadius : 20
+    }
   });

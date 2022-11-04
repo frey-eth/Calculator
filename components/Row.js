@@ -6,8 +6,10 @@ const Row = ({ children }) => {
 
 // create styles of Row
 const styles = StyleSheet.create({
-  container: {
+  container: 
+  {
     flexDirection: "row",
+    justifyContent : 'space-between',
   },
 });
 
